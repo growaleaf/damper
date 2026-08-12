@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Damper — you are the counterweight</title>
+<meta name="description" content="You are the tuned mass damper of a slender skyscraper. Swing anti-phase to hold the tower still through ten escalating nights.">
+<meta property="og:title" content="Damper">
+<meta property="og:description" content="You are the tuned mass damper of a slender skyscraper. Swing anti-phase to hold the tower still.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230d1a2b'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle'%3E%F0%9F%8F%99%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg: #060d18;
+    --bg2: #0d1a2b;
+    --steel: #274158;
+    --steel-light: #4a6b8a;
+    --glow: #dce9f5;
+    --amber: #e8c27a;
+    --danger: #c0533f;
+    --calm: #7fb3ae;
+    --text: #e7edf4;
+    --text-dim: #93a5ba;
+    --font: Georgia, 'Times New Roman', serif;
+    color-scheme: dark;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg2), var(--bg) 70%);
+    color: var(--text); font-family: var(--font);
+    display:flex; justify-content:center;
+    min-height:100dvh;
+  }
+  .app{
+    width:100%; max-width:480px; min-height:100dvh;
+    display:flex; flex-direction:column;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    position:relative;
+  }
+  .screen{ display:none; flex:1; flex-direction:column; }
+  .screen.active{ display:flex; }
+
+  h1{ font-size: 1.9rem; margin: 0.2em 0 0.1em; letter-spacing: 0.02em; }
+  h2{ font-size: 1.3rem; margin: 0.6em 0 0.3em; color: var(--glow); }
+  p{ line-height:1.55; color: var(--text-dim); margin: 0.5em 0; }
+  .tagline{ color: var(--amber); font-style: italic; }
+
+  .spacer{ flex:1; }
+  .stack{ display:flex; flex-direction:column; gap:10px; }
+
+  button{
+    font-family: var(--font); font-size: 1rem; color: var(--text);
+    background: linear-gradient(180deg, var(--steel-light), var(--steel));
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    padding: 14px 18px; cursor:pointer;
+  }
+  button:active{ transform: translateY(1px); }
+  button.primary{ background: linear-gradient(180deg, #f0d9a8, var(--amber)); color:#2a1d0a; font-weight:bold; border-color: rgba(0,0,0,0.2); }
+  button.ghost{ background: transparent; border: 1px solid var(--steel-light); }
+  button:disabled{ opacity: 0.4; cursor: default; }
+
+  .skyline{ height: 90px; margin: 10px 0 4px; opacity: 0.85; }
+
+  /* --- night picker --- */
+  .night-list{ display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+  .night-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+    border-radius:10px; padding:12px 14px; text-align:left; width:100%;
+  }
+  .night-row .num{ font-size:1.1rem; color: var(--amber); width: 2.2em; }
+  .night-row .head{ flex:1; color: var(--text); }
+  .night-row .head small{ display:block; color: var(--text-dim); font-size:0.8rem; margin-top:2px; }
+  .night-row .grade{ font-size:1.2rem; color: var(--calm); width:1.6em; text-align:center; }
+  .night-row.locked{ opacity:0.4; }
+  .night-row.endless{ border-color: var(--amber); }
+
+  /* --- play screen --- */
+  .hud{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .hud .headline{ font-size:0.95rem; color: var(--text-dim); }
+  .hud .clock{ font-variant-numeric: tabular-nums; color: var(--glow); }
+  .progressbar{ height:4px; background: rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; margin-bottom:8px; }
+  .progressbar .fill{ height:100%; background: var(--amber); width:0%; }
+
+  #stage{ flex:1; touch-action:none; border-radius:14px; overflow:hidden; background: #04080f; position:relative; min-height: 320px; }
+  canvas{ width:100%; height:100%; display:block; }
+
+  .caption{ position:absolute; left:0; right:0; bottom:10px; text-align:center; pointer-events:none; color: var(--text-dim); font-size:0.85rem; text-shadow: 0 1px 3px #000; }
+  .caption.strong{ color: var(--amber); }
+
+  .toast{
+    position:absolute; left:50%; top:14px; transform: translateX(-50%) translateY(-140%);
+    background: rgba(6,13,24,0.92); border:1px solid var(--amber); border-radius:10px;
+    padding:8px 14px; font-size:0.85rem; color: var(--amber); transition: transform 0.35s ease; pointer-events:none;
+    white-space:nowrap;
+  }
+  .toast.show{ transform: translateX(-50%) translateY(0); }
+
+  .quitrow{ display:flex; justify-content:flex-end; margin-top:8px; }
+
+  /* --- night end --- */
+  .gradebig{ font-size: 4rem; text-align:center; color: var(--amber); margin: 6px 0 0; }
+  .gradelabel{ text-align:center; margin-top:-4px; }
+  .stat-row{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.08); }
+  .stat-row .k{ color: var(--text-dim); }
+  .floor-list{ display:flex; flex-direction:column; gap:6px; margin: 8px 0; }
+  .floor-item{ background: rgba(255,255,255,0.03); border-radius:8px; padding:10px 12px; font-size:0.92rem; }
+  .floor-item .fl{ color: var(--calm); font-size:0.78rem; display:block; margin-bottom:2px; }
+  .sharebox{ background: rgba(255,255,255,0.04); border:1px dashed var(--steel-light); border-radius:10px; padding:10px 12px; font-size:0.85rem; color: var(--text-dim); margin: 8px 0; word-break: break-word; }
+  .copiednote{ font-size:0.8rem; color: var(--calm); min-height:1.2em; text-align:center; }
+
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TITLE -->
+  <section id="screen-title" class="screen active">
+    <div class="spacer"></div>
+    <svg class="skyline" viewBox="0 0 480 90" preserveAspectRatio="none">
+      <rect x="10" y="30" width="40" height="60" fill="#132234"/>
+      <rect x="60" y="10" width="34" height="80" fill="#182b42"/>
+      <rect x="105" y="45" width="30" height="45" fill="#0f1e2f"/>
+      <rect x="205" y="0" width="46" height="90" fill="#1b3350"/>
+      <circle cx="228" cy="16" r="6" fill="#2c4a6e"/>
+      <rect x="270" y="38" width="28" height="52" fill="#132234"/>
+      <rect x="310" y="18" width="36" height="72" fill="#182b42"/>
+      <rect x="370" y="50" width="24" height="40" fill="#0f1e2f"/>
+      <rect x="410" y="24" width="42" height="66" fill="#1b3350"/>
+    </svg>
+    <h1>Damper</h1>
+    <p class="tagline">You are the hundred-ton pendulum near the roof.</p>
+    <p>Wind, storms, a distant tremor, a rooftop wedding that finds its own rhythm — the tower sways, and you swing against it, anti-phase, to hold it still. Get the timing backwards and you don't just fail to help. You feed the sway.</p>
+    <div class="spacer"></div>
+    <div class="stack">
+      <button class="primary" id="btn-title-begin">Take the counterweight</button>
+      <button class="ghost" id="btn-title-howto">How it works</button>
+    </div>
+  </section>
+
+  <!-- HOW TO -->
+  <section id="screen-howto" class="screen">
+    <h2>How it works</h2>
+    <p>Every slender tower has a natural rhythm — a period it wants to sway at. Push it at that rhythm and it builds, cycle over cycle. That's resonance, and it's the thing that actually threatens tall buildings, not raw wind.</p>
+    <p>A tuned mass damper fights back by being a second weight that moves opposite the tower's own motion. Not sitting still. Not matching it. <em>Against</em> it — draining energy out with every swing instead of adding it in.</p>
+    <p><strong>Drag anywhere on the tower to swing yourself.</strong> Pull the same direction the tower is currently leaning and you're feeding it — the boss mechanic of every hard night is exactly that mistake. Pull opposite its motion and you're doing your job.</p>
+    <p>Hold your sway below the comfort line long enough and the floors below start to notice. A steady hand on forty. A marble that doesn't roll on sixty-one. A cake that survives the vows on the roof.</p>
+    <div class="spacer"></div>
+    <button class="primary" id="btn-howto-next">Got it</button>
+  </section>
+
+  <!-- NIGHT PICKER -->
+  <section id="screen-nights" class="screen">
+    <h2>Ten nights on the roof</h2>
+    <p>Each one asks something different of you.</p>
+    <div class="night-list" id="night-list"></div>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="screen-play" class="screen">
+    <div class="hud">
+      <span class="headline" id="play-headline">—</span>
+      <span class="clock" id="play-clock">0:00</span>
+    </div>
+    <div class="progressbar"><div class="fill" id="play-progress"></div></div>
+    <div id="stage">
+      <canvas id="canvas"></canvas>
+      <div class="caption" id="play-caption"></div>
+      <div class="toast" id="play-toast"></div>
+    </div>
+    <div class="quitrow"><button class="ghost" id="btn-play-quit">Step away</button></div>
+  </section>
+
+  <!-- NIGHT END -->
+  <section id="screen-nightend" class="screen">
+    <h2 id="end-headline">The tower held.</h2>
+    <div class="gradebig" id="end-grade">A</div>
+    <div class="gradelabel" id="end-gradelabel">—</div>
+    <div class="stat-row"><span class="k">peak sway</span><span id="end-peak">—</span></div>
+    <div class="stat-row"><span class="k">comfort held</span><span id="end-comfort">—</span></div>
+    <div class="floor-list" id="end-floors"></div>
+    <div class="sharebox" id="end-sharebox"></div>
+    <div class="copiednote" id="end-copiednote"></div>
+    <div class="spacer"></div>
+    <div class="stack">
+      <button class="ghost" id="btn-end-copy">Copy the report</button>
+      <button class="primary" id="btn-end-continue">Back to the roster</button>
+    </div>
+  </section>
+
+</div>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
